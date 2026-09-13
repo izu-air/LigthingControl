@@ -1,0 +1,24 @@
+# Copy this file to config.yaml and fill in your own values.
+# config.yaml is gitignored so your tokens never get committed.
+
+yandex:
+  enabled: true
+  oauth_token: "PASTE_YOUR_OAUTH_TOKEN_HERE"
+  device_id: "PASTE_YOUR_DEVICE_ID_HERE"
+
+rgb_strip:
+  enabled: true
+  mac_address: "AA:BB:CC:DD:EE:FF"
+  protocol: triones          # default protocol for most generic BLE RGB strip apps
+  write_characteristic_uuid: "0000ffd9-0000-1000-8000-00805f9b34fb"
+  connect_timeout: 10.0
+
+sync:
+  mode: screen               # screen | static | off
+  fps: 15
+  color_algorithm: average   # average | dominant
+  brightness: 1.0            # 0.0 - 1.0
+  gamma: 2.2
+  smoothing: 0.3             # 0 = instant, 1 = no smoothing at all (never changes)
+  min_change_threshold: 4    # skip sending updates smaller than this (sum of |dr|+|dg|+|db|)
+  monitor_index: 1           # 1 = first monitor, per mss numbering
