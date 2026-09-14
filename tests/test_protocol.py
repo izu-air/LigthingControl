@@ -9,7 +9,7 @@ from unified_lighting.color import (
     frame_dominant_color,
 )
 from unified_lighting.devices.rgb_strip_ble import PROTOCOLS
-from unified_lighting.devices.yandex_bulb import pack_rgb
+from unified_lighting.devices.yandex_bulb import pack_rgb, rgb_to_hsv_value
 
 
 def test_pack_rgb():
@@ -17,6 +17,14 @@ def test_pack_rgb():
     assert pack_rgb((0, 255, 0)) == 0x00FF00
     assert pack_rgb((0, 0, 255)) == 0x0000FF
     assert pack_rgb((18, 52, 86)) == 0x123456
+
+
+def test_rgb_to_hsv_value():
+    assert rgb_to_hsv_value((255, 0, 0)) == {"h": 0, "s": 100, "v": 100}
+    assert rgb_to_hsv_value((0, 255, 0)) == {"h": 120, "s": 100, "v": 100}
+    assert rgb_to_hsv_value((0, 0, 255)) == {"h": 240, "s": 100, "v": 100}
+    assert rgb_to_hsv_value((0, 0, 0)) == {"h": 0, "s": 0, "v": 0}
+    assert rgb_to_hsv_value((255, 255, 255)) == {"h": 0, "s": 0, "v": 100}
 
 
 def test_triones_color_command():

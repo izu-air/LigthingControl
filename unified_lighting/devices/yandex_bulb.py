@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import colorsys
 import logging
 
 import httpx
@@ -14,6 +15,12 @@ API_BASE = "https://api.iot.yandex.net/v1.0"
 def pack_rgb(rgb: RGB) -> int:
     r, g, b = rgb
     return (r << 16) | (g << 8) | b
+
+
+def rgb_to_hsv_value(rgb: RGB) -> dict:
+    r, g, b = rgb
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    return {"h": round(h * 360), "s": round(s * 100), "v": round(v * 100)}
 
 
 class YandexBulb(LightDevice):
@@ -33,10 +40,16 @@ class YandexBulb(LightDevice):
             headers={"Authorization": f"Bearer {oauth_token}"},
             timeout=timeout,
         )
+        self._color_model: str | None = None
 
     async def connect(self) -> None:
         response = await self._client.get(f"/devices/{self._device_id}")
         response.raise_for_status()
+        for capability in response.json().get("capabilities", []):
+            if capability.get("type") == "devices.capabilities.color_setting":
+                self._color_model = capability.get("parameters", {}).get("color_model")
+        if self._color_model is None:
+            logger.info("Device %s has no color_setting capability; set_color will be a no-op", self._device_id)
 
     async def _send_actions(self, actions: list[dict]) -> None:
         payload = {"devices": [{"id": self._device_id, "actions": actions}]}
@@ -52,13 +65,19 @@ class YandexBulb(LightDevice):
                     logger.warning("Yandex API rejected action: %s", state)
 
     async def set_color(self, rgb: RGB) -> None:
+        if self._color_model is None:
+            await self.connect()
+        if self._color_model == "rgb":
+            value = pack_rgb(rgb)
+            instance = "rgb"
+        elif self._color_model == "hsv":
+            value = rgb_to_hsv_value(rgb)
+            instance = "hsv"
+        else:
+            logger.warning("Device %s does not support color_setting, skipping set_color", self._device_id)
+            return
         await self._send_actions(
-            [
-                {
-                    "type": "devices.capabilities.color_setting",
-                    "state": {"instance": "rgb", "value": pack_rgb(rgb)},
-                }
-            ]
+            [{"type": "devices.capabilities.color_setting", "state": {"instance": instance, "value": value}}]
         )
 
     async def set_brightness(self, brightness: float) -> None:

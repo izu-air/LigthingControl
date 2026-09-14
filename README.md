@@ -73,9 +73,10 @@ copy config.example.yaml config.yaml
    нужную лампочку и скопируйте её `id`.
 3. Впишите оба значения в `config.yaml` → `yandex.oauth_token` и `yandex.device_id`.
 
-Если лампочка поддерживает не `rgb`, а только `hsv` — потребуется доработать
-`unified_lighting/devices/yandex_bulb.py::set_color`, отправив
-`{"instance": "hsv", "value": {...}}` вместо `rgb` (зависит от модели).
+Цветовая модель (`rgb` или `hsv`) определяется автоматически при подключении — код
+сам смотрит на `color_setting.parameters.color_model` устройства и шлёт нужный формат.
+Если у лампочки капабилити `color_setting` вообще нет (только вкл/выкл) — `set-color`
+для неё тихо пропускается, а `power`/`ambilight` по вкл/выкл продолжают работать.
 
 ## Настройка RGB-ленты (BLE)
 
