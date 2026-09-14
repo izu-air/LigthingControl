@@ -41,6 +41,8 @@ class YandexBulb(LightDevice):
     async def _send_actions(self, actions: list[dict]) -> None:
         payload = {"devices": [{"id": self._device_id, "actions": actions}]}
         response = await self._client.post("/devices/actions", json=payload)
+        if response.status_code >= 400:
+            logger.error("Yandex API error %s: %s", response.status_code, response.text)
         response.raise_for_status()
         body = response.json()
         for device in body.get("devices", []):
