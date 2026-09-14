@@ -26,14 +26,29 @@ screen (mss) -> color.py (среднее/доминирующий цвет, га
 Каждое устройство реализует общий интерфейс `LightDevice` (`connect`, `set_color`, `set_power`,
 `close`), поэтому включить/выключить любое из них — это просто `enabled: false` в конфиге.
 
+## Требования
+
+- Windows 10/11.
+- Python 3.10+ с [python.org](https://www.python.org/downloads/) (при установке отметить
+  "Add python.exe to PATH").
+- Bluetooth-адаптер (встроенный в ноутбук или USB-донгл) с установленными драйверами —
+  BLE-часть работает через стандартный Bluetooth-стек Windows, ничего дополнительно ставить
+  не нужно.
+
 ## Установка
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+В PowerShell или cmd, из папки с репозиторием:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-cp config.example.yaml config.yaml
+copy config.example.yaml config.yaml
 ```
+
+Если PowerShell блокирует активацию скриптом (`не удаётся загрузить... не имеет цифровой подписи`),
+выполните один раз: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, затем повторите
+`.venv\Scripts\activate`.
 
 `config.yaml` в `.gitignore` — токены и MAC-адреса туда не попадут в git.
 
@@ -50,9 +65,9 @@ cp config.example.yaml config.yaml
    настраивали умный дом Яндекса в Home Assistant или похожем проекте, токен оттуда подойдёт.
    Официальная документация с описанием процесса авторизации:
    https://yandex.ru/dev/dialogs/smart-home/doc/concepts/access.html
-2. **Узнать device_id.** С полученным токеном выполните:
-   ```bash
-   curl -H "Authorization: Bearer <ВАШ_ТОКЕН>" https://api.iot.yandex.net/v1.0/user/info
+2. **Узнать device_id.** С полученным токеном выполните в PowerShell:
+   ```powershell
+   Invoke-RestMethod -Uri "https://api.iot.yandex.net/v1.0/user/info" -Headers @{Authorization="Bearer <ВАШ_ТОКЕН>"} | ConvertTo-Json -Depth 10
    ```
    В ответе будет список ваших устройств (`devices[].id`, `devices[].name`) — найдите
    нужную лампочку и скопируйте её `id`.
@@ -70,14 +85,17 @@ cp config.example.yaml config.yaml
 переупакованная прошивка производителя). Если ваш контроллер именно такой — после указания
 MAC-адреса всё заработает "из коробки". Если нет — см. раздел "Если протокол не подошёл" ниже.
 
-1. **Найти MAC-адрес ленты.** На Linux:
-   ```bash
-   bluetoothctl
-   scan on
-   # дождитесь появления устройства (часто называется "Triones", "LEDBLE", "QHM-..." и т.п.)
+1. **Найти MAC-адрес ленты.** Проще всего — с телефона: приложение **nRF Connect**
+   (Nordic Semiconductor, Android/iOS) при сканировании покажет MAC-адрес и все
+   GATT-характеристики устройства (часто оно называется "Triones", "LEDBLE", "QHM-..." и т.п.).
+   На самой Windows отдельный MAC штатными средствами (Параметры → Bluetooth) обычно не
+   показывается, поэтому альтернативно можно запустить с компьютера включённый в репозиторий
+   скрипт (виртуальное окружение из шага "Установка" должно быть активировано):
+   ```powershell
+   python scan_ble.py
    ```
-   На Android можно использовать приложение nRF Connect (Nordic Semiconductor) — оно покажет
-   MAC и все GATT-характеристики устройства.
+   Он 10 секунд ищет BLE-устройства поблизости и печатает их MAC-адреса и имена — найдите
+   в списке свою ленту.
 2. Впишите MAC в `config.yaml` → `rgb_strip.mac_address`.
 3. Убедитесь, что телефон с приложением Lotus Lantern в этот момент **не подключён** к ленте —
    BLE-устройство одновременно держит только одно активное соединение.
@@ -99,7 +117,7 @@ MAC-адреса всё заработает "из коробки". Если н�
 
 ## Запуск
 
-```bash
+```powershell
 # статичный цвет
 python -m unified_lighting set-color 255 80 0
 
@@ -133,7 +151,7 @@ python -m unified_lighting ambilight
 Протокольная логика (упаковка RGB для Яндекса, байты команд для BLE-ленты, обработка цвета
 кадра, гамма, сглаживание) покрыта юнит-тестами, не требующими реального оборудования:
 
-```bash
+```powershell
 pip install pytest
 pytest
 ```
@@ -143,5 +161,5 @@ pytest
 - Протокол BLE-ленты (`triones`) — это распространённый отраслевой стандарт для подобных
   контроллеров, но не гарантированно тот же самый, что использует именно ваша модель под
   Lotus Lantern. Если не заработает сразу — см. "Если протокол не подошёл".
-- Захват экрана (`mss`) требует доступа к дисплею; на headless-сервере без X11/Wayland
-  режим `ambilight` работать не будет — там доступны только `set-color` и `power`.
+- Захват экрана (`mss`) требует активной сессии с монитором — на Windows это не проблема при
+  обычном запуске, но не заработает, например, через удалённую сессию без активного дисплея.
