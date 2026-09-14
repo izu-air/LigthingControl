@@ -8,7 +8,7 @@ from unified_lighting.color import (
     frame_average_color,
     frame_dominant_color,
 )
-from unified_lighting.devices.rgb_strip_ble import build_color_command
+from unified_lighting.devices.rgb_strip_ble import PROTOCOLS
 from unified_lighting.devices.yandex_bulb import pack_rgb
 
 
@@ -19,8 +19,20 @@ def test_pack_rgb():
     assert pack_rgb((18, 52, 86)) == 0x123456
 
 
-def test_build_color_command():
-    assert build_color_command((255, 128, 0)) == bytes([0x56, 255, 128, 0, 0x00, 0xF0, 0xAA])
+def test_triones_color_command():
+    build = PROTOCOLS["triones"].build_color_command
+    assert build((255, 128, 0)) == bytes([0x56, 255, 128, 0, 0x00, 0xF0, 0xAA])
+
+
+def test_happy_lighting_color_command():
+    build = PROTOCOLS["happy_lighting"].build_color_command
+    assert build((255, 128, 0)) == bytes([0x7E, 0x00, 0x05, 0x03, 255, 128, 0, 0x00, 0xEF])
+
+
+def test_happy_lighting_power_commands():
+    protocol = PROTOCOLS["happy_lighting"]
+    assert protocol.power_on == bytes.fromhex("7e04040100000000ef")
+    assert protocol.power_off == bytes.fromhex("7e04040000000000ef")
 
 
 def test_frame_average_color_rgb():

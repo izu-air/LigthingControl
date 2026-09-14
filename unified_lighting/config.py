@@ -38,7 +38,7 @@ class BleStripConfig:
             return
         if not self.mac_address:
             raise ConfigError("rgb_strip.mac_address is not set (scan for it, see README)")
-        if self.protocol not in ("triones", "raw_hex"):
+        if self.protocol not in ("triones", "happy_lighting"):
             raise ConfigError(f"rgb_strip.protocol: unknown value '{self.protocol}'")
 
 

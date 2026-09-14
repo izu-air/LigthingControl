@@ -9,7 +9,13 @@ yandex:
 rgb_strip:
   enabled: true
   mac_address: "AA:BB:CC:DD:EE:FF"
-  protocol: triones          # default protocol for most generic BLE RGB strip apps
+  # Two profiles are supported out of the box, matching the two most common
+  # GATT layouts for generic BLE RGB controllers. Use list_ble_services.py
+  # to see which one your strip exposes, and send_raw.py to double-check
+  # the byte format if picking the matching protocol doesn't work.
+  #   - "triones":        service 0000ffd5-..., write char 0000ffd9-...
+  #   - "happy_lighting": service 0000fff0-..., write char 0000fff3-...
+  protocol: triones
   write_characteristic_uuid: "0000ffd9-0000-1000-8000-00805f9b34fb"
   connect_timeout: 10.0
 

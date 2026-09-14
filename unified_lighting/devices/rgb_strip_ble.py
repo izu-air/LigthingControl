@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
+from typing import Callable
 
 from bleak import BleakClient
 
@@ -9,20 +11,38 @@ from .base import RGB, LightDevice
 
 logger = logging.getLogger(__name__)
 
-# "Triones"-family protocol used by most generic white-label BLE RGB
-# controllers (the chipset behind many rebranded apps such as
-# "Happy Lighting", "LED BLE", "Magic Blue" and, most likely, "Lotus
-# Lantern"). If your strip does not respond, capture the real bytes with
-# an Android "Bluetooth HCI snoop log" + Wireshark while using the Lotus
-# Lantern app, then adjust the constants below or switch protocol to
-# "raw_hex" in config.yaml and supply your own templates. See README.md.
-POWER_ON = bytes.fromhex("cc2333")
-POWER_OFF = bytes.fromhex("cc2433")
+
+@dataclass(frozen=True)
+class BleProtocol:
+    power_on: bytes
+    power_off: bytes
+    build_color_command: Callable[[RGB], bytes]
 
 
-def build_color_command(rgb: RGB) -> bytes:
+def _triones_color(rgb: RGB) -> bytes:
     r, g, b = rgb
     return bytes([0x56, r, g, b, 0x00, 0xF0, 0xAA])
+
+
+def _happy_lighting_color(rgb: RGB) -> bytes:
+    r, g, b = rgb
+    return bytes([0x7E, 0x00, 0x05, 0x03, r, g, b, 0x00, 0xEF])
+
+
+PROTOCOLS: dict[str, BleProtocol] = {
+    # Common on FFD5/FFD9 GATT layout controllers (also sold as "Magic Blue").
+    "triones": BleProtocol(
+        power_on=bytes.fromhex("cc2333"),
+        power_off=bytes.fromhex("cc2433"),
+        build_color_command=_triones_color,
+    ),
+    # Common on FFF0/FFF3/FFF4 GATT layout controllers.
+    "happy_lighting": BleProtocol(
+        power_on=bytes.fromhex("7e04040100000000ef"),
+        power_off=bytes.fromhex("7e04040000000000ef"),
+        build_color_command=_happy_lighting_color,
+    ),
+}
 
 
 class BleRgbStrip(LightDevice):
@@ -35,10 +55,11 @@ class BleRgbStrip(LightDevice):
         protocol: str = "triones",
         connect_timeout: float = 10.0,
     ):
-        if protocol != "triones":
+        if protocol not in PROTOCOLS:
             raise NotImplementedError(
-                f"protocol '{protocol}' is not implemented yet; use 'triones' or extend this class"
+                f"protocol '{protocol}' is not implemented; choose one of {sorted(PROTOCOLS)}"
             )
+        self._protocol = PROTOCOLS[protocol]
         self._mac_address = mac_address
         self._char_uuid = write_characteristic_uuid
         self._timeout = connect_timeout
@@ -58,10 +79,10 @@ class BleRgbStrip(LightDevice):
             await self._client.write_gatt_char(self._char_uuid, payload, response=False)
 
     async def set_color(self, rgb: RGB) -> None:
-        await self._write(build_color_command(rgb))
+        await self._write(self._protocol.build_color_command(rgb))
 
     async def set_power(self, on: bool) -> None:
-        await self._write(POWER_ON if on else POWER_OFF)
+        await self._write(self._protocol.power_on if on else self._protocol.power_off)
 
     async def close(self) -> None:
         if self._client is not None and self._client.is_connected:
