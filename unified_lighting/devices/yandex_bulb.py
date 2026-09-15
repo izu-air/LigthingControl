@@ -32,6 +32,11 @@ class YandexBulb(LightDevice):
     """
 
     name = "yandex_bulb"
+    # Many bulbs sold as "Yandex-compatible" are actually bridged through
+    # Tuya's cloud; that bridge starts returning 501/INTERNAL_ERROR under
+    # ambilight's frame rate, so this device gets updated far less often
+    # than a directly-connected one like the BLE strip.
+    min_update_interval = 1.5
 
     def __init__(self, oauth_token: str, device_id: str, timeout: float = 10.0):
         self._device_id = device_id

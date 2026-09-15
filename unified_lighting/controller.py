@@ -61,11 +61,19 @@ async def set_power_all(devices: list[LightDevice], on: bool) -> None:
             logger.warning("set_power failed on %s: %s", device.name, result)
 
 
+async def _send_to_device(device: LightDevice, rgb: RGB) -> None:
+    try:
+        await device.set_color(rgb)
+    except Exception as exc:  # noqa: BLE001 - device errors must not kill the sync loop
+        logger.warning("set_color failed on %s: %s", device.name, exc)
+
+
 async def run_screen_sync(config: AppConfig, devices: list[LightDevice], stop_event: asyncio.Event) -> None:
     capturer = ScreenCapturer(monitor_index=config.sync.monitor_index)
     smoother = ColorSmoother(alpha=config.sync.smoothing)
     period = 1.0 / config.sync.fps
-    last_sent: RGB | None = None
+    last_sent_color: dict[LightDevice, RGB] = {}
+    last_sent_time: dict[LightDevice, float] = {}
     loop = asyncio.get_running_loop()
 
     try:
@@ -81,10 +89,21 @@ async def run_screen_sync(config: AppConfig, devices: list[LightDevice], stop_ev
             smoothed = smoother.push(raw_color)
             final_color = apply_brightness(apply_gamma(smoothed, config.sync.gamma), config.sync.brightness)
 
-            if last_sent is None or color_distance(final_color, last_sent) >= config.sync.min_change_threshold:
-                logger.debug("screen avg=%s -> sending %s", raw_color, final_color)
-                await set_color_all(devices, final_color)
-                last_sent = final_color
+            due_devices = [
+                device
+                for device in devices
+                if tick_start - last_sent_time.get(device, float("-inf")) >= device.min_update_interval
+                and color_distance(final_color, last_sent_color.get(device, (-999, -999, -999)))
+                >= config.sync.min_change_threshold
+            ]
+            if due_devices:
+                logger.debug(
+                    "screen avg=%s -> sending %s to %s", raw_color, final_color, [d.name for d in due_devices]
+                )
+                await asyncio.gather(*(_send_to_device(d, final_color) for d in due_devices))
+                for device in due_devices:
+                    last_sent_color[device] = final_color
+                    last_sent_time[device] = tick_start
 
             elapsed = loop.time() - tick_start
             await asyncio.sleep(max(0.0, period - elapsed))
