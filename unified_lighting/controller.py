@@ -82,6 +82,7 @@ async def run_screen_sync(config: AppConfig, devices: list[LightDevice], stop_ev
             final_color = apply_brightness(apply_gamma(smoothed, config.sync.gamma), config.sync.brightness)
 
             if last_sent is None or color_distance(final_color, last_sent) >= config.sync.min_change_threshold:
+                logger.debug("screen avg=%s -> sending %s", raw_color, final_color)
                 await set_color_all(devices, final_color)
                 last_sent = final_color
 

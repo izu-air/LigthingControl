@@ -70,7 +70,10 @@ async def _run(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    if args.verbose:
+        logging.getLogger("unified_lighting").setLevel(logging.DEBUG)
     return asyncio.run(_run(args))
 
 

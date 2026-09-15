@@ -25,6 +25,6 @@ sync:
   color_algorithm: average   # average | dominant
   brightness: 1.0            # 0.0 - 1.0
   gamma: 2.2
-  smoothing: 0.3             # 0 = instant, 1 = no smoothing at all (never changes)
+  smoothing: 0.3             # 1 = instant (no smoothing), closer to 0 = slower/smoother transitions
   min_change_threshold: 4    # skip sending updates smaller than this (sum of |dr|+|dg|+|db|)
   monitor_index: 1           # 1 = first monitor, per mss numbering
