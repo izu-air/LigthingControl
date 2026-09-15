@@ -13,19 +13,23 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="unified-lighting")
-    parser.add_argument("--config", default="config.yaml", help="path to config.yaml")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--config", default="config.yaml", help="path to config.yaml")
+    common.add_argument("-v", "--verbose", action="store_true")
+
+    parser = argparse.ArgumentParser(prog="unified-lighting", parents=[common])
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("ambilight", help="continuously sync lights to the screen color")
+    subparsers.add_parser("ambilight", parents=[common], help="continuously sync lights to the screen color")
 
-    color_parser = subparsers.add_parser("set-color", help="set a static color on all enabled devices")
+    color_parser = subparsers.add_parser(
+        "set-color", parents=[common], help="set a static color on all enabled devices"
+    )
     color_parser.add_argument("r", type=int)
     color_parser.add_argument("g", type=int)
     color_parser.add_argument("b", type=int)
 
-    power_parser = subparsers.add_parser("power", help="turn all enabled devices on or off")
+    power_parser = subparsers.add_parser("power", parents=[common], help="turn all enabled devices on or off")
     power_parser.add_argument("state", choices=["on", "off"])
 
     return parser.parse_args(argv)
