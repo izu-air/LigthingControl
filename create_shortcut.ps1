@@ -6,8 +6,8 @@ $app = Join-Path $root "app.py"
 $icon = Join-Path $root "assets\icon.ico"
 
 if (-not (Test-Path $pythonw)) {
-    Write-Host "Не найден $pythonw"
-    Write-Host "Сначала создай виртуальное окружение по инструкции в README.md (python -m venv .venv ...)"
+    Write-Host "Not found: $pythonw"
+    Write-Host "Create the virtual environment first (see README.md: python -m venv .venv ...)"
     exit 1
 }
 
@@ -22,7 +22,7 @@ $shortcut.WorkingDirectory = $root
 if (Test-Path $icon) {
     $shortcut.IconLocation = $icon
 }
-$shortcut.Description = "LigthingControl - управление лампочкой и RGB-лентой"
+$shortcut.Description = "LigthingControl - lamp and RGB strip control"
 $shortcut.Save()
 
-Write-Host "Готово! Ярлык создан на рабочем столе: $shortcutPath"
+Write-Host "Done! Shortcut created on the Desktop: $shortcutPath"
