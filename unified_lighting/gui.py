@@ -98,6 +98,16 @@ class App(tk.Tk):
             ambilight_frame, text="Запустить Ambilight", command=self.on_toggle_ambilight
         )
         self.ambilight_button.pack(fill="x")
+        self.brightness_scale = tk.Scale(
+            ambilight_frame,
+            from_=0,
+            to=100,
+            orient="horizontal",
+            label="Яркость",
+            command=self.on_brightness_change,
+        )
+        self.brightness_scale.set(100)
+        self.brightness_scale.pack(fill="x")
 
         log_frame = tk.LabelFrame(frame, text="Журнал", padx=8, pady=8)
         log_frame.pack(fill="both", expand=True, pady=4)
@@ -113,6 +123,13 @@ class App(tk.Tk):
         self.devices = build_devices(self.config)
         await connect_all(self.devices)
         logger.info("Готово. Устройства: %s", ", ".join(d.name for d in self.devices) or "нет включённых")
+        self.after(0, lambda: self.brightness_scale.set(round(self.config.sync.brightness * 100)))
+        if self.config.sync.mode == "screen":
+            self.after(0, self._start_ambilight)
+
+    def on_brightness_change(self, value: str) -> None:
+        if self.config is not None:
+            self.config.sync.brightness = int(value) / 100.0
 
     def on_power_on(self) -> None:
         self._submit(set_power_all(self.devices, True))
@@ -131,14 +148,24 @@ class App(tk.Tk):
 
     def on_toggle_ambilight(self) -> None:
         if not self.ambilight_running:
-            self.ambilight_running = True
-            self.ambilight_stop_event = asyncio.Event()
-            self.ambilight_button.config(text="Остановить Ambilight")
-            self._submit(self._run_ambilight())
+            self._start_ambilight()
         else:
-            self.ambilight_running = False
-            self.ambilight_button.config(text="Запустить Ambilight")
-            self._submit(self._signal_ambilight_stop())
+            self._stop_ambilight()
+
+    def _start_ambilight(self) -> None:
+        if self.ambilight_running:
+            return
+        self.ambilight_running = True
+        self.ambilight_stop_event = asyncio.Event()
+        self.ambilight_button.config(text="Остановить Ambilight")
+        self._submit(self._run_ambilight())
+
+    def _stop_ambilight(self) -> None:
+        if not self.ambilight_running:
+            return
+        self.ambilight_running = False
+        self.ambilight_button.config(text="Запустить Ambilight")
+        self._submit(self._signal_ambilight_stop())
 
     async def _signal_ambilight_stop(self) -> None:
         if self.ambilight_stop_event is not None:

@@ -20,7 +20,7 @@ rgb_strip:
   connect_timeout: 10.0
 
 sync:
-  mode: screen               # screen | static | off
+  mode: screen               # screen (auto-start ambilight in the GUI) | off (manual control only)
   fps: 15
   color_algorithm: average   # average | dominant
   brightness: 1.0            # 0.0 - 1.0

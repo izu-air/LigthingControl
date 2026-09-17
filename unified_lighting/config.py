@@ -54,7 +54,7 @@ class SyncConfig:
     monitor_index: int = 1
 
     def validate(self) -> None:
-        if self.mode not in ("screen", "static", "off"):
+        if self.mode not in ("screen", "off"):
             raise ConfigError(f"sync.mode: unknown value '{self.mode}'")
         if self.color_algorithm not in ("average", "dominant"):
             raise ConfigError(f"sync.color_algorithm: unknown value '{self.color_algorithm}'")
