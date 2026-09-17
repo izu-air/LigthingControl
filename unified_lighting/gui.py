@@ -4,6 +4,7 @@ import asyncio
 import logging
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import colorchooser
 
 from .config import AppConfig, ConfigError, load_config
@@ -11,6 +12,8 @@ from .controller import build_devices, close_all, connect_all, run_screen_sync, 
 from .devices.base import LightDevice
 
 logger = logging.getLogger(__name__)
+
+ICON_PATH = Path(__file__).resolve().parent.parent / "assets" / "icon.ico"
 
 
 class TextHandler(logging.Handler):
@@ -35,6 +38,11 @@ class App(tk.Tk):
         self.title("LigthingControl")
         self.geometry("420x420")
         self.resizable(False, False)
+        if ICON_PATH.exists():
+            try:
+                self.iconbitmap(str(ICON_PATH))
+            except tk.TclError:
+                pass  # e.g. non-Windows platforms don't support .ico window icons
 
         self.config_path = config_path
         self.config: AppConfig | None = None
