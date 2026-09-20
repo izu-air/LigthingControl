@@ -46,6 +46,7 @@ class YandexBulb(LightDevice):
             timeout=timeout,
         )
         self._color_model: str | None = None
+        self._has_brightness_range = False
 
     async def connect(self) -> None:
         response = await self._client.get(f"/devices/{self._device_id}")
@@ -53,8 +54,16 @@ class YandexBulb(LightDevice):
         for capability in response.json().get("capabilities", []):
             if capability.get("type") == "devices.capabilities.color_setting":
                 self._color_model = capability.get("parameters", {}).get("color_model")
-        if self._color_model is None:
-            logger.info("Device %s has no color_setting capability; set_color will be a no-op", self._device_id)
+            elif (
+                capability.get("type") == "devices.capabilities.range"
+                and capability.get("parameters", {}).get("instance") == "brightness"
+            ):
+                self._has_brightness_range = True
+        if self._color_model is None and not self._has_brightness_range:
+            logger.info(
+                "Device %s has no color_setting or brightness capability; set_color will be a no-op",
+                self._device_id,
+            )
 
     async def _send_actions(self, actions: list[dict]) -> None:
         payload = {"devices": [{"id": self._device_id, "actions": actions}]}
@@ -70,20 +79,40 @@ class YandexBulb(LightDevice):
                     logger.warning("Yandex API rejected action: %s", state)
 
     async def set_color(self, rgb: RGB) -> None:
-        if self._color_model is None:
+        if self._color_model is None and not self._has_brightness_range:
             await self.connect()
+
+        actions = []
         if self._color_model == "rgb":
-            value = pack_rgb(rgb)
-            instance = "rgb"
+            actions.append(
+                {
+                    "type": "devices.capabilities.color_setting",
+                    "state": {"instance": "rgb", "value": pack_rgb(rgb)},
+                }
+            )
         elif self._color_model == "hsv":
-            value = rgb_to_hsv_value(rgb)
-            instance = "hsv"
-        else:
+            actions.append(
+                {
+                    "type": "devices.capabilities.color_setting",
+                    "state": {"instance": "hsv", "value": rgb_to_hsv_value(rgb)},
+                }
+            )
+
+        if self._has_brightness_range:
+            # color_setting's own "v"/value component doesn't drive the physical
+            # dimmer on most Yandex/Tuya bulbs - that's this separate capability.
+            brightness_pct = max(1, min(100, round(max(rgb) / 255 * 100)))
+            actions.append(
+                {
+                    "type": "devices.capabilities.range",
+                    "state": {"instance": "brightness", "value": brightness_pct},
+                }
+            )
+
+        if not actions:
             logger.warning("Device %s does not support color_setting, skipping set_color", self._device_id)
             return
-        await self._send_actions(
-            [{"type": "devices.capabilities.color_setting", "state": {"instance": instance, "value": value}}]
-        )
+        await self._send_actions(actions)
 
     async def set_brightness(self, brightness: float) -> None:
         await self._send_actions(
