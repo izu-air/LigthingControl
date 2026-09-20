@@ -38,6 +38,21 @@ def frame_dominant_color(frame: np.ndarray, bins: int = 5) -> RGB:
     return (r, g, b)
 
 
+def luma(color: RGB) -> float:
+    """Perceptual brightness of a color, 0-255."""
+    r, g, b = color
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def normalize_color(color: RGB) -> RGB:
+    """Scale so the brightest channel hits 255, keeping the hue but discarding overall level."""
+    peak = max(color)
+    if peak == 0:
+        return (0, 0, 0)
+    scale = 255.0 / peak
+    return tuple(int(round(min(255, c * scale))) for c in color)  # type: ignore[return-value]
+
+
 def apply_gamma(color: RGB, gamma: float) -> RGB:
     if gamma == 1.0:
         return color
@@ -47,6 +62,17 @@ def apply_gamma(color: RGB, gamma: float) -> RGB:
 def apply_brightness(color: RGB, brightness: float) -> RGB:
     brightness = max(0.0, min(1.0, brightness))
     return tuple(int(round(c * brightness)) for c in color)  # type: ignore[return-value]
+
+
+def compute_output_color(color: RGB, gamma: float, brightness: float) -> RGB:
+    """Gamma is applied to the hue only (kept at full strength) so dark scenes stay
+    colorful instead of washing out; overall output level then follows the color's
+    own perceived brightness, so a dark screen dims the light and a bright one
+    doesn't - on top of the user's brightness cap."""
+    screen_luminance = luma(color) / 255.0
+    hue = normalize_color(color)
+    vivid = apply_gamma(hue, gamma)
+    return apply_brightness(vivid, brightness * screen_luminance)
 
 
 def color_distance(a: RGB, b: RGB) -> int:

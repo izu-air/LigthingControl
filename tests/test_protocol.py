@@ -1,12 +1,16 @@
 import numpy as np
+import pytest
 
 from unified_lighting.color import (
     ColorSmoother,
     apply_brightness,
     apply_gamma,
     color_distance,
+    compute_output_color,
     frame_average_color,
     frame_dominant_color,
+    luma,
+    normalize_color,
 )
 from unified_lighting.devices.rgb_strip_ble import PROTOCOLS
 from unified_lighting.devices.yandex_bulb import pack_rgb, rgb_to_hsv_value
@@ -86,6 +90,39 @@ def test_apply_brightness_clamps():
 def test_color_distance():
     assert color_distance((0, 0, 0), (10, 10, 10)) == 30
     assert color_distance((5, 5, 5), (5, 5, 5)) == 0
+
+
+def test_luma_orders_perceived_brightness():
+    assert luma((255, 255, 255)) == pytest.approx(255)
+    assert luma((0, 0, 0)) == 0
+    # green reads brighter than blue at equal channel value (perceptual weights)
+    assert luma((0, 200, 0)) > luma((0, 0, 200))
+
+
+def test_normalize_color_preserves_hue_and_maxes_out():
+    r, g, b = normalize_color((100, 50, 25))
+    assert r == 255
+    assert g == pytest.approx(128, abs=1)
+    assert b == pytest.approx(64, abs=1)
+    assert normalize_color((0, 0, 0)) == (0, 0, 0)
+    assert normalize_color((255, 255, 255)) == (255, 255, 255)
+
+
+def test_compute_output_color_dims_for_dark_screen():
+    dark = compute_output_color((10, 10, 10), gamma=2.2, brightness=1.0)
+    bright = compute_output_color((240, 240, 240), gamma=2.2, brightness=1.0)
+    assert sum(dark) < sum(bright)
+    assert sum(dark) < 60  # a near-black screen should not come out looking lit up
+
+
+def test_compute_output_color_respects_brightness_cap():
+    full = compute_output_color((200, 100, 50), gamma=2.2, brightness=1.0)
+    half = compute_output_color((200, 100, 50), gamma=2.2, brightness=0.5)
+    assert sum(half) < sum(full)
+
+
+def test_compute_output_color_black_stays_black():
+    assert compute_output_color((0, 0, 0), gamma=2.2, brightness=1.0) == (0, 0, 0)
 
 
 def test_color_smoother_converges():

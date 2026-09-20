@@ -6,9 +6,8 @@ import logging
 from .color import (
     ColorSmoother,
     ScreenCapturer,
-    apply_brightness,
-    apply_gamma,
     color_distance,
+    compute_output_color,
     frame_average_color,
     frame_dominant_color,
 )
@@ -114,7 +113,7 @@ async def run_screen_sync(config: AppConfig, devices: list[LightDevice], stop_ev
                 continue
 
             smoothed = smoother.push(raw_color)
-            final_color = apply_brightness(apply_gamma(smoothed, config.sync.gamma), config.sync.brightness)
+            final_color = compute_output_color(smoothed, config.sync.gamma, config.sync.brightness)
 
             due_devices = select_due_devices(
                 devices, final_color, last_sent_color, last_sent_time, tick_start, config.sync.min_change_threshold
